@@ -1,0 +1,216 @@
+package clases;
+
+import java.io.BufferedReader;
+import java.util.List;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javafx.stage.DirectoryChooser;
+import javax.swing.JFileChooser;
+
+public class manejaArchivo 
+{    
+    String ruta;
+    File archivo;
+    
+    manejaArchivo(String ruta)
+    {
+        this.ruta = ruta;
+    }
+    
+    public List<String> leetxt()
+    {
+        List<String> lista = new ArrayList<>();
+        BufferedReader almacen = null;
+        FileReader lector = null;
+        
+        try
+        {   
+            //System.out.println("Delimitador: ");
+            archivo = new File(ruta);
+            lector = new FileReader(archivo);
+            almacen = new BufferedReader(lector);
+            String cadena;
+            while((cadena=almacen.readLine()) != null)
+                lista.add(cadena);
+        }
+        
+        catch (Exception ex) { System.out.println("Ha ocurrido el siguiente error: "+ex.getMessage()); }
+        
+        finally { try {            
+            almacen.close();
+            lector.close();
+            } catch (IOException ex) {
+                Logger.getLogger(manejaArchivo.class.getName()).log(Level.SEVERE, null, ex);
+            }
+}
+        
+        return lista;
+    }
+
+    private List<escuela> genLisEsc(List<String> lista, String corte)
+    {
+        List<escuela> lis_es = new ArrayList<>();
+        escuela e;
+        String[] temp;
+        boolean bandera = false;
+        
+        try
+        {
+            for(String str : lista)
+            {
+                if (!bandera) { bandera = true; continue; }
+                temp = str.split(corte);
+                //System.out.println("Estos son los datos a ingresar a la clase");
+                //for(String s:temp) { System.out.println(s); }
+                    e = new escuela(temp[0], temp[1], temp[2], temp[3], temp[4], temp[5], 
+                            temp[6], temp[7], temp[8], temp[9], temp[10], temp[11], temp[12]);
+                    //System.out.println(e.loc);
+                    lis_es.add(e);
+                //System.out.println("Tamaño de la lista de escuelas: " + lis_es.size());
+            }
+        }
+        
+        catch (Exception ex) { System.out.println("Conflicto en generación de la lista. Mensaje: "+ex.getMessage()); return null; }
+        
+        return lis_es;
+    }
+    
+    public String creaCarpetas(List<String> lista)
+    {        
+        File arch;
+        List<escuela> lis_esc;
+        String temp, loc, clave;        
+        int suma;
+        PrintWriter pw = null;
+        Map<String, String> mapa;
+        Set<String> localidades;
+        
+        try
+        {
+            if (archivo == null){ return "Genere la lista de datos antes de proceder"; }    // Valido si el archivo está cargado
+            JFileChooser seleccionador = new JFileChooser();    // Genero la ventana de selección
+            seleccionador.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            seleccionador.setToolTipText("Seleccione la ruta para crear las carpetas");
+            seleccionador.setDialogTitle("Ruta donde se generará el directorio de escuelas");
+            int seleccion = seleccionador.showDialog(seleccionador, "Generar aquí");    // Tomo el retorno de la selección del usuario donde se crearán las carpetas
+            
+            if (seleccion == JFileChooser.OPEN_DIALOG)
+            {
+                String ruta_padre = seleccionador.getSelectedFile().getPath();
+                arch = new File(ruta_padre+"\\Directorio Escolar");
+                
+                if (arch.mkdir())
+                {                
+                    System.out.println("El directorio padre fue creado con éxito en: "+ruta_padre);
+                    ruta_padre+="\\Directorio Escolar";
+                    lis_esc = genLisEsc(lista, "\t");
+                    //System.out.println("Colección generada con éxito");
+                    mapa = new HashMap<>();
+                    localidades = new HashSet<>();
+                    
+                    for(escuela esc : lis_esc)
+                    {
+                        loc = esc.loc;
+                        if (!mapa.containsValue(loc))
+                        {
+                            mapa.put(loc.concat("}"), loc);
+                            mapa.put(loc.concat("ce"), "0");     // ce=Cantidad de escuelas
+                            mapa.put(loc.concat("dm"), "0");     // dm=Docentes mujeres
+                            mapa.put(loc.concat("dh"), "0");     // dh=Docentes hombres
+                            mapa.put(loc.concat("am"), "0");     // am=Alumnos mujeres
+                            mapa.put(loc.concat("ah"), "0");     // ah=Alumnos hombres
+                        }
+                        
+                        //System.out.println(loc);
+                        clave = esc.cve;
+                        temp = ruta_padre+"\\"+loc;                      
+                        arch = new File(temp);                        
+                        
+                        if (!arch.exists())
+                        {
+                            arch.mkdir();
+                            //System.out.println("Escuelas en: "+loc0+": "+acum_esc);
+                            System.out.println("Se creó un nuevo directorio en: "+temp);
+                            localidades.add(loc);
+                            mapa.put(loc.concat("r"), temp);
+                        }
+                        
+                        arch = new File(temp+"\\"+clave+".txt");
+                        
+                        if (!arch.exists())  // Valido que el archivo no exista, si existe, sólo se escribirá sobre él
+                        {                            
+                            pw = new PrintWriter(arch);
+                            suma = Integer.valueOf(mapa.get(loc.concat("ce")))+1;
+                            mapa.put(loc.concat("ce"), String.valueOf(suma)); // Se entiende que cada clave genera un archivo, así que se acumulan la cantidad de escuelas
+                        }
+                        
+                        else
+                            pw.println("\n\n");
+                        
+                        String[] data = esc.datos().split("\n");
+                        for(String s:data)
+                        pw.println(s);
+                        pw.flush();
+                                                
+                        //clave0 = esc.cve;
+                        suma = Integer.valueOf(mapa.get(loc.concat("dm")))+Integer.valueOf(esc.dmuj);
+                        mapa.put(loc.concat("dm"), String.valueOf(suma));
+                        suma = Integer.valueOf(mapa.get(loc.concat("dh")))+Integer.valueOf(esc.dhom);
+                        mapa.put(loc.concat("dh"), String.valueOf(suma));
+                        suma = Integer.valueOf(mapa.get(loc.concat("am")))+Integer.valueOf(esc.amuj);
+                        mapa.put(loc.concat("am"), String.valueOf(suma));
+                        suma = Integer.valueOf(mapa.get(loc.concat("ah")))+Integer.valueOf(esc.ahom);
+                        mapa.put(loc.concat("ah"), String.valueOf(suma));                        
+                    }
+                    //genRes(ruta_padre, loc0, acum_esc, acum_dm, acum_dh, acum_am, acum_ah);
+                    for(String s:localidades)
+                    {
+                        genRes(mapa.get(s.concat("r")), s, mapa.get(s.concat("ce")), mapa.get(s.concat("dm")), 
+                                mapa.get(s.concat("dh")), mapa.get(s.concat("am")), mapa.get(s.concat("ah")));
+                    }
+                 }
+            }            
+        }
+        
+        catch(Exception ex) { System.out.println("Se ha registrado el siguiente conflicto: "+ex.getMessage()); }
+        
+        finally
+        {
+            if (pw != null)
+            pw.close();
+        }
+        
+        return "";
+    }
+    
+    public void genRes(String ruta, String loc, String ce, String dm, String dh, String am, String ah)
+    {
+        PrintWriter pw = null;
+        try {
+            File arch = new File(ruta+"\\Resúmen de la zona "+loc+".txt");
+            pw = new PrintWriter(arch);
+            pw.println("*** Resúmen general de la zona: "+loc+" ***");
+            pw.println("Cantidad de escuelas:\t"+ce);
+            pw.println("Cantidad de docentes mujeres:\t"+dm);
+            pw.println("Cantidad de docentes hombres:\t"+dh);
+            pw.println("Cantidad de alumnas:\t"+am);
+            pw.println("Cantidad de alumnos:\t"+ah);
+            pw.flush();
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(manejaArchivo.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            pw.close();
+        }
+    }
+}
